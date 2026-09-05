@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ژورنال معاملاتی</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#12181f;
+    --ink-soft:#3d4b58;
+    --paper:#eef1f0;
+    --panel:#ffffff;
+    --line:#dde3e1;
+    --brass:#8a6d3b;
+    --brass-soft:#c9a969;
+    --profit:#1f7a5c;
+    --profit-bg:#e5f3ee;
+    --loss:#a8402f;
+    --loss-bg:#fbeae7;
+    --flat:#6b6357;
+    --flat-bg:#f0ede6;
+    --shadow: 0 1px 2px rgba(18,24,31,.06), 0 8px 24px -12px rgba(18,24,31,.15);
+    --radius: 3px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Vazirmatn',sans-serif;
+    line-height:1.6;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;direction:ltr;display:inline-block;}
+  header.app{
+    background:var(--ink);
+    color:#f2efe8;
+    padding:28px 40px 24px;
+    border-bottom:3px solid var(--brass-soft);
+  }
+  header.app .row{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;}
+  header.app h1{
+    margin:0;
+    font-size:26px;
+    font-weight:800;
+    letter-spacing:-.3px;
+  }
+  header.app p{margin:4px 0 0;color:#c7c2b4;font-size:13.5px;}
+  .stat-strip{display:flex;gap:28px;}
+  .stat{text-align:center;}
+  .stat b{display:block;font-size:20px;font-family:'JetBrains Mono',monospace;}
+  .stat span{font-size:11px;color:#b9b3a2;}
+  main{max-width:1180px;margin:0 auto;padding:28px 40px 80px;}
+
+  .toolbar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:20px;flex-wrap:wrap;gap:12px;
+  }
+  .toolbar-group{display:flex;gap:10px;flex-wrap:wrap;}
+  button{
+    font-family:inherit;font-size:13.5px;font-weight:600;
+    border-radius:var(--radius);border:1px solid var(--line);
+    background:var(--panel);color:var(--ink);
+    padding:9px 16px;cursor:pointer;transition:.15s;
+  }
+  button:hover{border-color:var(--ink);}
+  button.primary{background:var(--ink);color:#f2efe8;border-color:var(--ink);}
+  button.primary:hover{background:#26313d;}
+  button.gold{background:var(--brass);color:#fff;border-color:var(--brass);}
+  button.gold:hover{background:#725a30;}
+  button.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);padding:6px 8px;}
+  button.small{padding:6px 10px;font-size:12px;}
+  button.danger-ghost{color:var(--loss);}
+
+  .chart-card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px 22px;margin-bottom:26px;box-shadow:var(--shadow);
+  }
+  .chart-card h2{margin:0 0 14px;font-size:14px;letter-spacing:.2px;color:var(--ink-soft);font-weight:600;}
+  .chart-wrap{height:220px;}
+  .dash-grid{display:grid;grid-template-columns:180px 1fr;gap:24px;align-items:center;}
+  .dash-donut{height:170px;position:relative;}
+  .dash-numbers{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .dnum{background:#fbfbfa;border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;}
+  .dnum b{display:block;font-family:'JetBrains Mono',monospace;font-size:22px;margin-bottom:2px;}
+  .dnum span{font-size:11.5px;color:var(--ink-soft);}
+  .dnum-win{color:var(--profit);}
+  .dnum-loss{color:var(--loss);}
+  .dnum-flat{color:var(--flat);}
+  @media(max-width:700px){.dash-grid{grid-template-columns:1fr;}.dash-donut{margin:0 auto;max-width:220px;}}
+
+  form#entryForm{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:24px 26px;margin-bottom:28px;box-shadow:var(--shadow);
+  }
+  form#entryForm h2{margin:0 0 18px;font-size:16px;font-weight:700;border-bottom:2px solid var(--brass-soft);padding-bottom:10px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+  .grid .full{grid-column:1/-1;}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;font-weight:600;}
+  .field input, .field select, .field textarea{
+    width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);
+    font-family:inherit;font-size:13.5px;background:#fbfbfa;color:var(--ink);
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{outline:none;border-color:var(--brass);background:#fff;}
+  .field textarea{resize:vertical;min-height:64px;}
+  .result-toggle{display:flex;gap:8px;}
+  .result-toggle label{
+    flex:1;text-align:center;border:1px solid var(--line);border-radius:var(--radius);
+    padding:9px 6px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink-soft);
+  }
+  .result-toggle input{display:none;}
+  .result-toggle input:checked + span{}
+  .result-toggle label:has(input:checked){background:var(--flat-bg);border-color:var(--flat);color:var(--flat);}
+  .result-toggle label.win:has(input:checked){background:var(--profit-bg);border-color:var(--profit);color:var(--profit);}
+  .result-toggle label.loss:has(input:checked){background:var(--loss-bg);border-color:var(--loss);color:var(--loss);}
+  .file-drop{
+    border:1.5px dashed var(--line);border-radius:var(--radius);padding:14px;text-align:center;
+    font-size:12.5px;color:var(--ink-soft);cursor:pointer;background:#fbfbfa;
+  }
+  .thumb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px;margin-top:10px;}
+  .thumb-item{position:relative;}
+  .thumb-item img{width:100%;height:70px;object-fit:cover;border-radius:3px;border:1px solid var(--line);}
+  .thumb-item .rm{
+    position:absolute;top:-6px;left:-6px;width:20px;height:20px;border-radius:50%;
+    background:var(--loss);color:#fff;border:none;font-size:12px;line-height:20px;padding:0;
+    cursor:pointer;
+  }
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;}
+  .gallery img{width:100%;height:90px;object-fit:cover;border-radius:3px;border:1px solid var(--line);cursor:zoom-in;}
+  .form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+
+  .filters{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .filters select, .filters input{
+    padding:7px 10px;border:1px solid var(--line);border-radius:var(--radius);
+    font-family:inherit;font-size:12.5px;background:var(--panel);
+  }
+
+  .entries{display:flex;flex-direction:column;gap:12px;}
+  .entry{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);overflow:hidden;
+  }
+  .entry-head{
+    display:grid;grid-template-columns:1.1fr 1fr .9fr .9fr .9fr .8fr auto;
+    gap:10px;align-items:center;padding:14px 18px;cursor:pointer;
+  }
+  .entry-head .symbol{font-weight:800;font-size:15px;}
+  .entry-head .sub{font-size:11px;color:var(--ink-soft);}
+  .badge{
+    display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;
+    border:1px solid currentColor;
+  }
+  .badge.cyc{color:var(--brass);}
+  .badge.res-win{color:var(--profit);background:var(--profit-bg);border-color:var(--profit);}
+  .badge.res-loss{color:var(--loss);background:var(--loss-bg);border-color:var(--loss);}
+  .badge.res-flat{color:var(--flat);background:var(--flat-bg);border-color:var(--flat);}
+  .entry-body{
+    display:none;padding:0 18px 20px;border-top:1px solid var(--line);
+  }
+  .entry-body.open{display:block;}
+  .detail-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px;padding-top:16px;}
+  .detail-grid .desc{font-size:13.5px;color:var(--ink-soft);white-space:pre-wrap;}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12.5px;margin-bottom:14px;}
+  .kv b{color:var(--ink-soft);font-weight:600;}
+  .shot{width:100%;border-radius:var(--radius);border:1px solid var(--line);cursor:zoom-in;}
+  .entry-actions{display:flex;gap:8px;margin-top:14px;justify-content:flex-end;}
+  .empty{
+    text-align:center;padding:60px 20px;color:var(--ink-soft);border:1.5px dashed var(--line);
+    border-radius:var(--radius);background:var(--panel);
+  }
+
+  /* printable card used only for PDF capture */
+  #pdfStage{position:fixed;left:-9999px;top:0;width:640px;background:#fff;padding:32px;font-family:'Vazirmatn',sans-serif;color:#12181f;}
+  #pdfStage h3{margin:0 0 4px;font-size:22px;}
+  #pdfStage .pdf-sub{color:#6b6357;font-size:12px;margin-bottom:18px;}
+  #pdfStage .pdf-kv{display:grid;grid-template-columns:110px 1fr;row-gap:8px;font-size:13px;margin-bottom:16px;}
+  #pdfStage .pdf-kv b{color:#3d4b58;}
+  #pdfStage .pdf-desc{font-size:13px;line-height:1.7;border-top:1px solid #dde3e1;padding-top:12px;margin-bottom:16px;white-space:pre-wrap;}
+  #pdfStage img{max-width:100%;border-radius:4px;border:1px solid #dde3e1;}
+
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(18,24,31,.8);z-index:50;align-items:center;justify-content:center;padding:30px;}
+  .modal-bg.open{display:flex;}
+  .modal-bg img{max-width:100%;max-height:90vh;border-radius:4px;}
+
+  footer.note{max-width:1180px;margin:0 auto;padding:0 40px 40px;font-size:12px;color:var(--ink-soft);}
+
+  @media(max-width:900px){
+    header.app,main,footer.note{padding-left:18px;padding-right:18px;}
+    .grid{grid-template-columns:repeat(2,1fr);}
+    .entry-head{grid-template-columns:1fr 1fr;row-gap:6px;}
+    .detail-grid{grid-template-columns:1fr;}
+    .stat-strip{gap:16px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="app">
+  <div class="row">
+    <div>
+      <h1>ژورنال معاملاتی</h1>
+      <p>ثبت دقیق معاملات، تحلیل عملکرد و آرشیو اسکرین‌شات‌ها</p>
+    </div>
+    <div class="stat-strip">
+      <div class="stat"><b id="statCount">۰</b><span>تعداد معاملات</span></div>
+      <div class="stat"><b id="statWinrate">—</b><span>وین‌ریت</span></div>
+      <div class="stat"><b id="statNet">—</b><span>خالص سود/ضرر</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div class="chart-card">
+    <h2>داشبورد عملکرد</h2>
+    <div class="dash-grid">
+      <div class="dash-donut"><canvas id="resultDonut"></canvas></div>
+      <div class="dash-numbers">
+        <div class="dnum"><b class="dnum-win" id="dashWinPct">۰٪</b><span>معاملات سودده</span></div>
+        <div class="dnum"><b class="dnum-loss" id="dashLossPct">۰٪</b><span>معاملات ضررده</span></div>
+        <div class="dnum"><b class="dnum-flat" id="dashFlatPct">۰٪</b><span>معاملات سربه‌سر</span></div>
+        <div class="dnum"><b id="dashProfitFactor">—</b><span>فاکتور سود (Profit Factor)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h2>روند تجمعی سود و ضرر (Equity Curve)</h2>
+    <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <button class="primary" id="btnNew">+ ثبت معامله جدید</button>
+      <button class="gold" id="btnExportExcel">خروجی اکسل (استیتمنت)</button>
+    </div>
+    <div class="toolbar-group">
+      <button class="ghost danger-ghost" id="btnClearAll">پاک‌کردن همه داده‌ها</button>
+    </div>
+  </div>
+
+  <form id="entryForm" style="display:none;">
+    <h2 id="formTitle">ثبت معامله جدید</h2>
+    <input type="hidden" id="editId">
+    <div class="grid">
+      <div class="field"><label>نماد معاملاتی</label><input type="text" id="f_symbol" placeholder="مثلاً XAUUSD" required></div>
+      <div class="field"><label>تاریخ</label><input type="date" id="f_date" required></div>
+      <div class="field"><label>ساعت</label><input type="time" id="f_time" required></div>
+      <div class="field"><label>استراتژی</label><input type="text" id="f_strategy" placeholder="مثلاً برک‌اوت / پول‌بک"></div>
+
+      <div class="field"><label>نقطه ورود</label><input type="number" step="any" id="f_entry" required></div>
+      <div class="field"><label>نقطه خروج</label><input type="number" step="any" id="f_exit" required></div>
+      <div class="field"><label>سود/ضرر (مبلغ یا R)</label><input type="text" id="f_pnl" placeholder="مثلاً +2.4R یا 150$"></div>
+      <div class="field">
+        <label>سایکل مارکت</label>
+        <select id="f_cycle">
+          <option value="TR">TR — تریدینگ رنج (Trading Range)</option>
+          <option value="SP">SP — اسپایک (Spike)</option>
+          <option value="CH">CH — کانال (Channel)</option>
+          <option value="V">V — الگوی وی (V-Pattern)</option>
+        </select>
+      </div>
+
+      <div class="field full">
+        <label>نتیجه معامله</label>
+        <div class="result-toggle">
+          <label class="win"><input type="radio" name="f_result" value="win"><span>سودده</span></label>
+          <label class="loss"><input type="radio" name="f_result" value="loss"><span>ضررده</span></label>
+          <label><input type="radio" name="f_result" value="flat" checked><span>سربه‌سر</span></label>
+        </div>
+      </div>
+
+      <div class="field full"><label>توضیحات معامله</label><textarea id="f_desc" placeholder="دلیل ورود، مدیریت معامله، درس‌های گرفته‌شده..."></textarea></div>
+
+      <div class="field full">
+        <label>اسکرین‌شات‌های معامله (حداکثر ۱۰ تصویر)</label>
+        <div class="file-drop" id="dropZone">
+          <span id="dropLabel">برای انتخاب تصویر (یک یا چند تصویر) کلیک کنید</span>
+          <input type="file" id="f_image" accept="image/*" multiple style="display:none;">
+          <div class="thumb-grid" id="thumbGrid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="ghost" id="btnCancel">انصراف</button>
+      <button type="submit" class="primary">ذخیره معامله</button>
+    </div>
+  </form>
+
+  <div class="filters">
+    <input type="text" id="filterSymbol" placeholder="فیلتر بر اساس نماد...">
+    <select id="filterCycle">
+      <option value="">همه سایکل‌ها</option>
+      <option value="TR">TR</option><option value="SP">SP</option><option value="CH">CH</option><option value="V">V</option>
+    </select>
+    <select id="filterResult">
+      <option value="">همه نتایج</option>
+      <option value="win">سودده</option><option value="loss">ضررده</option><option value="flat">سربه‌سر</option>
+    </select>
+  </div>
+
+  <div class="entries" id="entriesList"></div>
+
+</main>
+
+<footer class="note">
+  داده‌ها به‌صورت محلی در همین مرورگر ذخیره می‌شوند (localStorage). این فایل HTML را جداگانه نگه دارید و همیشه با همان مرورگر باز کنید تا ژورنال شما حفظ شود؛ برای پشتیبان‌گیری از دکمه «خروجی اکسل» استفاده کنید.
+</footer>
+
+<div class="modal-bg" id="imgModal"><img id="imgModalSrc"></div>
+<div id="pdfStage"></div>
+
+<script>
+const STORAGE_KEY = 'tj_entries_v1';
+let entries = [];
+try{ entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }catch(e){ entries = []; }
+
+const cycleLabel = {TR:'TR — تریدینگ رنج', SP:'SP — اسپایک', CH:'CH — کانال', V:'V — الگوی وی'};
+const resultLabel = {win:'سودده', loss:'ضررده', flat:'سربه‌سر'};
+
+const form = document.getElementById('entryForm');
+const entriesList = document.getElementById('entriesList');
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('f_image');
+const thumbGrid = document.getElementById('thumbGrid');
+const dropLabel = document.getElementById('dropLabel');
+const MAX_IMAGES = 10;
+let currentImages = [];
+
+function getImages(entry){
+  if(entry.images && entry.images.length) return entry.images;
+  if(entry.image) return [entry.image];
+  return [];
+}
+
+function renderThumbGrid(){
+  thumbGrid.innerHTML = '';
+  currentImages.forEach((src, i) => {
+    const item = document.createElement('div');
+    item.className = 'thumb-item';
+    item.innerHTML = `<img src="${src}"><button type="button" class="rm" data-i="${i}">×</button>`;
+    item.querySelector('.rm').addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      currentImages.splice(i, 1);
+      renderThumbGrid();
+    });
+    thumbGrid.appendChild(item);
+  });
+  dropLabel.textContent = currentImages.length
+    ? `${toFa(currentImages.length)} از ${toFa(MAX_IMAGES)} تصویر — برای افزودن بیشتر کلیک کنید`
+    : 'برای انتخاب تصویر (یک یا چند تصویر) کلیک کنید';
+}
+
+document.getElementById('btnNew').addEventListener('click', () => openForm());
+document.getElementById('btnCancel').addEventListener('click', () => closeForm());
+
+function openForm(entry){
+  form.style.display = 'block';
+  form.scrollIntoView({behavior:'smooth', block:'start'});
+  if(entry){
+    document.getElementById('formTitle').textContent = 'ویرایش معامله';
+    document.getElementById('editId').value = entry.id;
+    document.getElementById('f_symbol').value = entry.symbol;
+    document.getElementById('f_date').value = entry.date;
+    document.getElementById('f_time').value = entry.time;
+    document.getElementById('f_strategy').value = entry.strategy || '';
+    document.getElementById('f_entry').value = entry.entryPrice;
+    document.getElementById('f_exit').value = entry.exitPrice;
+    document.getElementById('f_pnl').value = entry.pnl || '';
+    document.getElementById('f_cycle').value = entry.cycle;
+    document.querySelector(`input[name="f_result"][value="${entry.result}"]`).checked = true;
+    document.getElementById('f_desc').value = entry.desc || '';
+    currentImages = [...getImages(entry)];
+    renderThumbGrid();
+  } else {
+    document.getElementById('formTitle').textContent = 'ثبت معامله جدید';
+    form.reset();
+    document.getElementById('editId').value = '';
+    currentImages = [];
+    renderThumbGrid();
+    document.getElementById('f_date').value = new Date().toISOString().slice(0,10);
+  }
+}
+function closeForm(){ form.style.display='none'; form.reset(); currentImages = []; renderThumbGrid(); }
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  const files = Array.from(fileInput.files || []);
+  if(!files.length) return;
+  const remaining = MAX_IMAGES - currentImages.length;
+  if(remaining <= 0){
+    alert(`حداکثر ${toFa(MAX_IMAGES)} تصویر برای هر معامله مجاز است.`);
+    fileInput.value = '';
+    return;
+  }
+  const toAdd = files.slice(0, remaining);
+  if(files.length > remaining){
+    alert(`فقط ${toFa(remaining)} تصویر دیگر اضافه شد (سقف ${toFa(MAX_IMAGES)} تصویر).`);
+  }
+  let loaded = 0;
+  toAdd.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      currentImages.push(e.target.result);
+      loaded++;
+      if(loaded === toAdd.length){ renderThumbGrid(); fileInput.value = ''; }
+    };
+    reader.readAsDataURL(file);
+  });
+});
+
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('editId').value || ('t' + Date.now());
+  const entry = {
+    id,
+    symbol: document.getElementById('f_symbol').value.trim(),
+    date: document.getElementById('f_date').value,
+    time: document.getElementById('f_time').value,
+    strategy: document.getElementById('f_strategy').value.trim(),
+    entryPrice: document.getElementById('f_entry').value,
+    exitPrice: document.getElementById('f_exit').value,
+    pnl: document.getElementById('f_pnl').value.trim(),
+    cycle: document.getElementById('f_cycle').value,
+    result: document.querySelector('input[name="f_result"]:checked').value,
+    desc: document.getElementById('f_desc').value.trim(),
+    images: currentImages.slice(0, MAX_IMAGES)
+  };
+  const idx = entries.findIndex(x => x.id === id);
+  if(idx >= 0) entries[idx] = entry; else entries.unshift(entry);
+  save();
+  closeForm();
+  render();
+});
+
+document.getElementById('btnClearAll').addEventListener('click', () => {
+  if(confirm('آیا مطمئن هستید؟ تمام معاملات ثبت‌شده حذف خواهند شد.')){
+    entries = [];
+    save();
+    render();
+  }
+});
+
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+
+function deleteEntry(id){
+  if(confirm('این معامله حذف شود؟')){
+    entries = entries.filter(x => x.id !== id);
+    save();
+    render();
+  }
+}
+
+function pnlNumeric(entry){
+  const m = (entry.pnl || '').match(/-?\d+(\.\d+)?/);
+  let v = m ? parseFloat(m[0]) : 0;
+  if(entry.result === 'loss' && v > 0) v = -v;
+  if(entry.result === 'flat') v = 0;
+  return v;
+}
+
+document.getElementById('filterSymbol').addEventListener('input', render);
+document.getElementById('filterCycle').addEventListener('change', render);
+document.getElementById('filterResult').addEventListener('change', render);
+
+function render(){
+  const fSym = document.getElementById('filterSymbol').value.trim().toLowerCase();
+  const fCyc = document.getElementById('filterCycle').value;
+  const fRes = document.getElementById('filterResult').value;
+
+  const sorted = [...entries].sort((a,b) => (b.date+b.time).localeCompare(a.date+a.time));
+  const filtered = sorted.filter(en =>
+    (!fSym || en.symbol.toLowerCase().includes(fSym)) &&
+    (!fCyc || en.cycle === fCyc) &&
+    (!fRes || en.result === fRes)
+  );
+
+  entriesList.innerHTML = '';
+  if(filtered.length === 0){
+    entriesList.innerHTML = '<div class="empty">هنوز معامله‌ای ثبت نشده یا فیلتر فعلی نتیجه‌ای ندارد.</div>';
+  } else {
+    filtered.forEach(en => entriesList.appendChild(buildEntryCard(en)));
+  }
+
+  updateStats();
+  updateDashboard();
+  updateChart();
+}
+
+function buildEntryCard(en){
+  const wrap = document.createElement('div');
+  wrap.className = 'entry';
+  const resClass = en.result === 'win' ? 'res-win' : en.result === 'loss' ? 'res-loss' : 'res-flat';
+  const images = getImages(en);
+  wrap.innerHTML = `
+    <div class="entry-head">
+      <div><div class="symbol">${escapeHtml(en.symbol)}</div><div class="sub">${en.date} — ${en.time}</div></div>
+      <div class="sub">استراتژی<br>${escapeHtml(en.strategy || '—')}</div>
+      <div class="sub">ورود / خروج<br><span class="mono">${escapeHtml(en.entryPrice)} → ${escapeHtml(en.exitPrice)}</span></div>
+      <div><span class="badge cyc">${cycleLabel[en.cycle] || en.cycle}</span></div>
+      <div><span class="badge ${resClass}">${resultLabel[en.result]}${en.pnl ? ' · '+escapeHtml(en.pnl) : ''}</span></div>
+      <div class="sub">${images.length ? `📎 ${toFa(images.length)} اسکرین‌شات` : '—'}</div>
+      <div><button class="ghost small toggleBtn">جزئیات ▾</button></div>
+    </div>
+    <div class="entry-body">
+      <div class="detail-grid">
+        <div>
+          <div class="kv">
+            <b>نماد</b><span>${escapeHtml(en.symbol)}</span>
+            <b>تاریخ / ساعت</b><span>${en.date} — ${en.time}</span>
+            <b>استراتژی</b><span>${escapeHtml(en.strategy || '—')}</span>
+            <b>ورود</b><span class="mono">${escapeHtml(en.entryPrice)}</span>
+            <b>خروج</b><span class="mono">${escapeHtml(en.exitPrice)}</span>
+            <b>سایکل مارکت</b><span>${cycleLabel[en.cycle] || en.cycle}</span>
+            <b>نتیجه</b><span>${resultLabel[en.result]}${en.pnl ? ' ('+escapeHtml(en.pnl)+')' : ''}</span>
+          </div>
+          <div class="desc">${escapeHtml(en.desc || 'بدون توضیحات.')}</div>
+          <div class="entry-actions">
+            <button class="small editBtn">ویرایش</button>
+            <button class="small pdfBtn gold">خروجی PDF</button>
+            <button class="small danger-ghost deleteBtn">حذف</button>
+          </div>
+        </div>
+        <div class="gallery">${images.map(src => `<img src="${src}">`).join('')}</div>
+      </div>
+    </div>
+  `;
+  const head = wrap.querySelector('.entry-head');
+  const body = wrap.querySelector('.entry-body');
+  head.querySelector('.toggleBtn').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    body.classList.toggle('open');
+  });
+  head.addEventListener('click', () => body.classList.toggle('open'));
+  wrap.querySelector('.editBtn').addEventListener('click', (ev) => { ev.stopPropagation(); openForm(en); });
+  wrap.querySelector('.deleteBtn').addEventListener('click', (ev) => { ev.stopPropagation(); deleteEntry(en.id); });
+  wrap.querySelector('.pdfBtn').addEventListener('click', (ev) => { ev.stopPropagation(); exportPdf(en); });
+  wrap.querySelectorAll('.gallery img').forEach(imgEl => {
+    imgEl.addEventListener('click', (ev) => { ev.stopPropagation(); openImgModal(imgEl.src); });
+  });
+  return wrap;
+}
+
+function escapeHtml(str){
+  if(str === undefined || str === null) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function openImgModal(src){
+  document.getElementById('imgModalSrc').src = src;
+  document.getElementById('imgModal').classList.add('open');
+}
+document.getElementById('imgModal').addEventListener('click', () => {
+  document.getElementById('imgModal').classList.remove('open');
+});
+
+function updateStats(){
+  document.getElementById('statCount').textContent = toFa(entries.length);
+  if(entries.length === 0){
+    document.getElementById('statWinrate').textContent = '—';
+    document.getElementById('statNet').textContent = '—';
+    return;
+  }
+  const decided = entries.filter(e => e.result !== 'flat');
+  const wins = entries.filter(e => e.result === 'win').length;
+  const winrate = decided.length ? Math.round((wins/decided.length)*100) : 0;
+  document.getElementById('statWinrate').textContent = toFa(winrate) + '%';
+  const net = entries.reduce((sum,e) => sum + pnlNumeric(e), 0);
+  document.getElementById('statNet').textContent = (net >= 0 ? '+' : '') + net.toFixed(2);
+}
+
+function toFa(n){
+  return String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+}
+
+let donutInstance = null;
+function updateDashboard(){
+  const total = entries.length;
+  const wins = entries.filter(e => e.result === 'win').length;
+  const losses = entries.filter(e => e.result === 'loss').length;
+  const flats = total - wins - losses;
+  const pct = n => total ? Math.round((n/total)*100) : 0;
+
+  document.getElementById('dashWinPct').textContent = toFa(pct(wins)) + '٪';
+  document.getElementById('dashLossPct').textContent = toFa(pct(losses)) + '٪';
+  document.getElementById('dashFlatPct').textContent = toFa(pct(flats)) + '٪';
+
+  const grossProfit = entries.filter(e => e.result === 'win').reduce((s,e) => s + Math.abs(pnlNumeric(e)), 0);
+  const grossLoss = entries.filter(e => e.result === 'loss').reduce((s,e) => s + Math.abs(pnlNumeric(e)), 0);
+  const pf = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : (grossProfit > 0 ? '∞' : '—');
+  document.getElementById('dashProfitFactor').textContent = pf;
+
+  const ctx = document.getElementById('resultDonut').getContext('2d');
+  if(donutInstance) donutInstance.destroy();
+  donutInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['سودده', 'ضررده', 'سربه‌سر'],
+      datasets: [{
+        data: total ? [wins, losses, flats] : [1,0,0],
+        backgroundColor: ['#1f7a5c', '#a8402f', '#c9c2ac'],
+        borderColor: '#ffffff',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: { legend: { display:false } }
+    }
+  });
+}
+
+let chartInstance = null;
+function updateChart(){
+  const sorted = [...entries].sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
+  let cum = 0;
+  const labels = [];
+  const data = [];
+  sorted.forEach(en => {
+    cum += pnlNumeric(en);
+    labels.push(en.date);
+    data.push(cum);
+  });
+  const ctx = document.getElementById('equityChart').getContext('2d');
+  if(chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels.length ? labels : ['—'],
+      datasets: [{
+        label: 'سود/ضرر تجمعی',
+        data: data.length ? data : [0],
+        borderColor: '#8a6d3b',
+        backgroundColor: 'rgba(138,109,59,0.12)',
+        fill: true,
+        tension: 0.25,
+        pointRadius: 3,
+        pointBackgroundColor: '#12181f'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display:false }, ticks: { font: { family: 'Vazirmatn' } } },
+        y: { grid: { color: '#dde3e1' }, ticks: { font: { family: 'JetBrains Mono' } } }
+      }
+    }
+  });
+}
+
+/* ---------- Excel export ---------- */
+document.getElementById('btnExportExcel').addEventListener('click', () => {
+  if(entries.length === 0){ alert('هیچ معامله‌ای برای خروجی وجود ندارد.'); return; }
+  const sorted = [...entries].sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
+  let cum = 0;
+  const rows = sorted.map(en => {
+    const pnlVal = pnlNumeric(en);
+    cum += pnlVal;
+    return {
+      'نماد': en.symbol,
+      'تاریخ': en.date,
+      'ساعت': en.time,
+      'استراتژی': en.strategy || '',
+      'نقطه ورود': en.entryPrice,
+      'نقطه خروج': en.exitPrice,
+      'سایکل مارکت': cycleLabel[en.cycle] || en.cycle,
+      'نتیجه': resultLabel[en.result],
+      'سود/ضرر': en.pnl || '',
+      'سود/ضرر عددی': pnlVal,
+      'موجودی تجمعی': Number(cum.toFixed(2)),
+      'توضیحات': en.desc || ''
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [ {wch:10},{wch:12},{wch:8},{wch:16},{wch:10},{wch:10},{wch:14},{wch:10},{wch:12},{wch:12},{wch:14},{wch:40} ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Statement');
+  XLSX.writeFile(wb, `trading-journal-${new Date().toISOString().slice(0,10)}.xlsx`);
+});
+
+/* ---------- PDF export (per entry) ---------- */
+function exportPdf(en){
+  const stage = document.getElementById('pdfStage');
+  const images = getImages(en);
+  stage.innerHTML = `
+    <h3>${escapeHtml(en.symbol)}</h3>
+    <div class="pdf-sub">${en.date} — ${en.time} &nbsp;|&nbsp; ژورنال معاملاتی</div>
+    <div class="pdf-kv">
+      <b>استراتژی</b><span>${escapeHtml(en.strategy || '—')}</span>
+      <b>نقطه ورود</b><span>${escapeHtml(en.entryPrice)}</span>
+      <b>نقطه خروج</b><span>${escapeHtml(en.exitPrice)}</span>
+      <b>سایکل مارکت</b><span>${cycleLabel[en.cycle] || en.cycle}</span>
+      <b>نتیجه</b><span>${resultLabel[en.result]}${en.pnl ? ' ('+escapeHtml(en.pnl)+')' : ''}</span>
+    </div>
+    <div class="pdf-desc">${escapeHtml(en.desc || 'بدون توضیحات.')}</div>
+    ${images.map(src => `<img src="${src}" style="margin-bottom:12px;">`).join('')}
+  `;
+  html2canvas(stage, {scale:2, backgroundColor:'#ffffff'}).then(canvas => {
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit:'pt', format:'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 30;
+    const imgWidth = pageWidth - margin*2;
+    const imgHeight = canvas.height * (imgWidth / canvas.width);
+    const usableHeight = pageHeight - margin*2;
+    let heightLeft = imgHeight;
+    let position = margin;
+    pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+    heightLeft -= usableHeight;
+    while(heightLeft > 0){
+      position = margin - (imgHeight - heightLeft);
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+      heightLeft -= usableHeight;
+    }
+    pdf.save(`${en.symbol}-${en.date}.pdf`);
+  });
+}
+
+render();
+</script>
+
+</body>
+</html>
